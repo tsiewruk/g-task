@@ -1,0 +1,41 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+TASKS.md
+*.md
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# CI/CD
+.github
+.gitlab-ci.yml
+
+# IDEs
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+
+# Helm
+helm/
+
+# Build scripts
+build.sh

@@ -1,0 +1,242 @@
+# ======================================
+# PHP Containerization PoC
+# Services: Traefik, PHP-Apache, MySQL, Redis
+# ======================================
+
+services:
+  # ======================================
+  # Traefik - Reverse Proxy & Load Balancer
+  # ======================================
+  traefik:
+    image: traefik:v3.0
+    container_name: php_poc_traefik
+    restart: unless-stopped
+    command:
+      # API and Dashboard
+      - "--api.insecure=true"
+      - "--api.dashboard=true"
+
+      # Providers
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+
+      # Entrypoints
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+
+      # Access logs
+      - "--accesslog=true"
+      - "--log.level=INFO"
+    ports:
+      - "80:80"         # HTTP
+      - "443:443"       # HTTPS
+      - "8080:8080"     # Traefik Dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik-certs:/letsencrypt
+    networks:
+      - php_poc_network
+    labels:
+      - "traefik.enable=true"
+      # Dashboard
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.localhost`)"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.entrypoints=web"
+
+  # ======================================
+  # PHP Application - Production
+  # ======================================
+  php-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: php_poc_app
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./docker/etc/environment:/etc/environment:ro
+      - app-logs:/var/log/apache2
+    environment:
+      # These are also loaded from /etc/environment via entrypoint
+      APP_ENV: production
+      APP_NAME: "PHP PoC Application"
+      APP_DEBUG: "false"
+      MYSQL_HOST: mysql
+      MYSQL_DATABASE: app_db
+      MYSQL_USER: app_user
+      MYSQL_PASSWORD: app_password
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    networks:
+      - php_poc_network
+    labels:
+      - "traefik.enable=true"
+      # HTTP Router
+      - "traefik.http.routers.php-app.rule=Host(`app.localhost`)"
+      - "traefik.http.routers.php-app.entrypoints=web"
+      - "traefik.http.services.php-app.loadbalancer.server.port=80"
+      # Health check
+      - "traefik.http.services.php-app.loadbalancer.healthcheck.path=/"
+      - "traefik.http.services.php-app.loadbalancer.healthcheck.interval=10s"
+
+  # ======================================
+  # PHP Application - Development (with Xdebug)
+  # ======================================
+  php-app-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: php_poc_app_dev
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./docker/etc/environment:/etc/environment:ro
+      - ./src:/var/www/html/src:rw
+      - app-logs:/var/log/apache2
+    environment:
+      APP_ENV: development
+      APP_NAME: "PHP PoC Application (DEV)"
+      APP_DEBUG: "true"
+      MYSQL_HOST: mysql
+      MYSQL_DATABASE: app_db
+      MYSQL_USER: app_user
+      MYSQL_PASSWORD: app_password
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      XDEBUG_MODE: debug,develop
+      XDEBUG_CONFIG: client_host=host.docker.internal
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - php_poc_network
+    labels:
+      - "traefik.enable=true"
+      # HTTP Router
+      - "traefik.http.routers.php-app-dev.rule=Host(`dev.localhost`)"
+      - "traefik.http.routers.php-app-dev.entrypoints=web"
+      - "traefik.http.services.php-app-dev.loadbalancer.server.port=80"
+    profiles:
+      - dev
+
+  # ======================================
+  # MySQL Database
+  # ======================================
+  mysql:
+    image: mysql:8.0
+    container_name: php_poc_mysql
+    restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: app_db
+      MYSQL_USER: app_user
+      MYSQL_PASSWORD: app_password
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - php_poc_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    labels:
+      - "traefik.enable=false"
+
+  # ======================================
+  # Redis Cache
+  # ======================================
+  redis:
+    image: redis:7-alpine
+    container_name: php_poc_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    networks:
+      - php_poc_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    labels:
+      - "traefik.enable=false"
+
+  # ======================================
+  # PHPMyAdmin (Optional - for database management)
+  # ======================================
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: php_poc_phpmyadmin
+    restart: unless-stopped
+    depends_on:
+      - mysql
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: root_password
+    networks:
+      - php_poc_network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.phpmyadmin.rule=Host(`pma.localhost`)"
+      - "traefik.http.routers.phpmyadmin.entrypoints=web"
+      - "traefik.http.services.phpmyadmin.loadbalancer.server.port=80"
+    profiles:
+      - tools
+
+  # ======================================
+  # Redis Commander (Optional - for Redis management)
+  # ======================================
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: php_poc_redis_commander
+    restart: unless-stopped
+    depends_on:
+      - redis
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    networks:
+      - php_poc_network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.redis-commander.rule=Host(`redis.localhost`)"
+      - "traefik.http.routers.redis-commander.entrypoints=web"
+      - "traefik.http.services.redis-commander.loadbalancer.server.port=8081"
+    profiles:
+      - tools
+
+# ======================================
+# Networks
+# ======================================
+networks:
+  php_poc_network:
+    driver: bridge
+    name: php_poc_network
+
+# ======================================
+# Volumes
+# ======================================
+volumes:
+  mysql-data:
+    name: php_poc_mysql_data
+  redis-data:
+    name: php_poc_redis_data
+  traefik-certs:
+    name: php_poc_traefik_certs
+  app-logs:
+    name: php_poc_app_logs

@@ -1,0 +1,20 @@
+{
+    "name": "recruitment/php-containerization-poc",
+    "description": "PoC konteneryzacji projektu PHP z PDO MySQL i Redis",
+    "type": "project",
+    "require": {
+        "php": "^8.2",
+        "ext-pdo": "*",
+        "ext-pdo_mysql": "*",
+        "ext-redis": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "src/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true
+    }
+}

@@ -1,0 +1,29 @@
+# Dependencies
+/vendor/
+composer.phar
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+/logs/
+
+# Environment
+.env
+.env.local
+
+# Docker
+.docker/
+
+# Helm
+helm/php-poc/charts/
+helm/php-poc/Chart.lock
+
+# OS
+Thumbs.db
