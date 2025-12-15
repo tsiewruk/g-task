@@ -1,0 +1,29 @@
+# Dependencies
+/vendor/
+composer.phar
+
+# Testing
+.phpunit.result.cache
+/coverage/
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+/logs/
+
+# Environment
+.env
+.env.local
+
+# Docker
+.docker/
+
+# OS
+Thumbs.db

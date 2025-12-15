@@ -1,0 +1,24 @@
+# ======================================
+# Environment Variables Configuration
+# Loaded by Docker entrypoint script
+# ======================================
+
+# Application Configuration
+APP_ENV=production
+APP_NAME="PHP PoC Application"
+APP_DEBUG=false
+
+# MySQL Configuration
+MYSQL_HOST=mysql
+MYSQL_PORT=3306
+MYSQL_DATABASE=app_db
+MYSQL_USER=app_user
+MYSQL_PASSWORD=app_password
+
+# Redis Configuration
+REDIS_HOST=redis
+REDIS_PORT=6379
+
+# Additional custom variables
+APP_VERSION=1.0.0
+APP_TIMEZONE=Europe/Warsaw
