@@ -2,6 +2,7 @@
     "name": "recruitment/php-containerization-poc",
     "description": "PoC konteneryzacji projektu PHP z PDO MySQL i Redis",
     "type": "project",
+    "license": "proprietary",
     "require": {
         "php": "^8.2",
         "ext-pdo": "*",
