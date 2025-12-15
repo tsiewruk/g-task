@@ -65,7 +65,6 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 # Copy vendor and app code
 COPY --from=composer-deps --chown=www-data:www-data /var/www/html/vendor ./vendor
 COPY --chown=www-data:www-data ./src ./src
-COPY --chown=www-data:www-data ./docker/etc ./docker/etc
 
 RUN chown -R www-data:www-data /var/www/html && chmod -R 755 /var/www/html
 
@@ -101,7 +100,6 @@ COPY --from=composer-deps-dev --chown=www-data:www-data /var/www/html/vendor ./v
 
 # Copy app code
 COPY --chown=www-data:www-data ./src ./src
-COPY --chown=www-data:www-data ./docker/etc ./docker/etc
 
 RUN chown -R www-data:www-data /var/www/html && chmod -R 755 /var/www/html
 
