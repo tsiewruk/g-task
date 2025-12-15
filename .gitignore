@@ -2,6 +2,10 @@
 /vendor/
 composer.phar
 
+# Testing
+.phpunit.result.cache
+/coverage/
+
 # IDEs
 .idea/
 .vscode/
@@ -20,10 +24,6 @@ composer.phar
 
 # Docker
 .docker/
-
-# Helm
-helm/php-poc/charts/
-helm/php-poc/Chart.lock
 
 # OS
 Thumbs.db

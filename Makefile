@@ -1,6 +1,3 @@
-# Makefile dla PHP PoC Containerization
-# Ułatwia uruchamianie najczęstszych komend
-
 .PHONY: help build up down logs clean test dev prod tools
 
 # Kolory
@@ -33,15 +30,9 @@ dev: ## Uruchom stack development z Xdebug
 	docker-compose --profile dev up -d
 	@echo "$(GREEN)✓ Dev application running at http://dev.localhost$(NC)"
 
-tools: ## Uruchom z PHPMyAdmin i Redis Commander
-	@echo "$(BLUE)Starting with development tools...$(NC)"
-	docker-compose --profile tools up -d
-	@echo "$(GREEN)✓ PHPMyAdmin at http://pma.localhost$(NC)"
-	@echo "$(GREEN)✓ Redis Commander at http://redis.localhost$(NC)"
-
 down: ## Zatrzymaj wszystkie kontenery
 	@echo "$(BLUE)Stopping containers...$(NC)"
-	docker-compose --profile dev --profile tools down
+	docker-compose --profile dev down
 
 restart: ## Restart aplikacji
 	@echo "$(BLUE)Restarting application...$(NC)"
@@ -58,17 +49,27 @@ ps: ## Lista uruchomionych kontenerów
 
 clean: ## Usuń kontenery i wolumeny
 	@echo "$(BLUE)Cleaning up...$(NC)"
-	docker-compose --profile dev --profile tools down -v
+	docker-compose --profile dev down -v
 	docker system prune -f
 
 clean-all: ## Usuń wszystko włącznie z obrazami
 	@echo "$(BLUE)Deep cleaning...$(NC)"
-	docker-compose --profile dev --profile tools down -v --rmi all
+	docker-compose --profile dev down -v --rmi all
 	docker system prune -af
 
 test: ## Test połączenia z aplikacją
 	@echo "$(BLUE)Testing application...$(NC)"
 	@curl -s http://app.localhost > /dev/null && echo "$(GREEN)✓ Application is responding$(NC)" || echo "$(RED)✗ Application is not responding$(NC)"
+
+test-unit: ## Uruchom testy jednostkowe (PHPUnit)
+	@echo "$(BLUE)Running unit tests...$(NC)"
+	docker run --rm -v "$$(pwd)":/app -w /app composer:2.7 exec phpunit
+	@echo "$(GREEN)✓ Unit tests completed$(NC)"
+
+test-unit-coverage: ## Uruchom testy z code coverage
+	@echo "$(BLUE)Running unit tests with coverage...$(NC)"
+	docker run --rm -v "$$(pwd)":/app -w /app composer:2.7 exec phpunit --coverage-text
+	@echo "$(GREEN)✓ Tests with coverage completed$(NC)"
 
 shell: ## Połącz się z kontenerem PHP (bash)
 	docker-compose exec php-app bash
@@ -78,22 +79,6 @@ mysql: ## Połącz się z MySQL CLI
 
 redis: ## Połącz się z Redis CLI
 	docker-compose exec redis redis-cli
-
-# Helm commands
-helm-lint: ## Lint Helm chart
-	./helm/build-helm.sh --action lint
-
-helm-template: ## Generuj Helm templates
-	./helm/build-helm.sh --action template
-
-helm-install: ## Zainstaluj Helm chart
-	./helm/build-helm.sh --action install
-
-helm-upgrade: ## Upgrade Helm release
-	./helm/build-helm.sh --action upgrade
-
-helm-uninstall: ## Odinstaluj Helm release
-	./helm/build-helm.sh --action uninstall
 
 # Development helpers
 composer-install: ## Zainstaluj Composer dependencies w kontenerze
@@ -117,8 +102,6 @@ info: ## Wyświetl informacje o stacku
 	@echo "  Application:    http://app.localhost"
 	@echo "  Dev App:        http://dev.localhost"
 	@echo "  Traefik:        http://traefik.localhost"
-	@echo "  PHPMyAdmin:     http://pma.localhost"
-	@echo "  Redis UI:       http://redis.localhost"
 	@echo ""
 	@echo "$(GREEN)Services:$(NC)"
 	@docker-compose ps
@@ -132,12 +115,11 @@ archive: ## Stwórz archiwum projektu (tar.gz)
 		--exclude='.git' \
 		--exclude='vendor' \
 		--exclude='*.log' \
-		--exclude='helm/php-poc/charts' \
 		.
 	@echo "$(GREEN)✓ Archive created: php-poc-containerization.tar.gz$(NC)"
 
 zip: ## Stwórz archiwum projektu (zip)
 	@echo "$(BLUE)Creating ZIP archive...$(NC)"
 	zip -r php-poc-containerization.zip . \
-		-x "*.git*" "vendor/*" "*.log" "helm/php-poc/charts/*"
+		-x "*.git*" "vendor/*" "*.log"
 	@echo "$(GREEN)✓ Archive created: php-poc-containerization.zip$(NC)"
